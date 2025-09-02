@@ -1,0 +1,8 @@
+.env
+__pycache__
+venv
+*.log
+scratch.py 
+util.py
+api.py
+test.py

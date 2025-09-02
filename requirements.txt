@@ -1,0 +1,5 @@
+boto3
+requests
+moto
+pandas
+pytest
