@@ -3,3 +3,5 @@ requests
 moto
 pandas
 pytest
+black
+flake8

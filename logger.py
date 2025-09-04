@@ -3,6 +3,7 @@ import logging
 import sys
 from pathlib import Path
 
+
 def setup_logging(log_level=logging.INFO, log_to_file=False, log_file="pipeline.log"):
     """Configure root logger for the pipeline."""
     logger = logging.getLogger()
@@ -14,8 +15,7 @@ def setup_logging(log_level=logging.INFO, log_to_file=False, log_file="pipeline.
     # Console handler (stdout)
     console_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter(
-        fmt="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        fmt="%(asctime)s | %(name)s | %(levelname)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
