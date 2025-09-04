@@ -21,7 +21,7 @@ country_code = 'USA'
 ZIP_CODE_CURRENT_API = f'https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=imperial'
 bucket_name = '1daatabucket'
 s3 = boto3.client('s3')
-
+key = f'Raw_api_data/{CITY}_Weather_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.json'
 
 def get_current_weather(URI: str) -> json:
     r = requests.get(URI)
@@ -44,7 +44,11 @@ def load_json_to_s3(data: json, key, bucket = bucket_name) -> None:
             logging.exception(f"Failed to upload: {key}", exc_info = True)
         finally:
             logging.info(f'The file: {key} was uploaded at {datetime.now()}.')
+
 def ingest(get_current_weather, load_json_to_s3, *args, **kwargs):
+    '''
+    Wrapper function for functions involving ingestion.
+    '''
     get_current_weather_kwargs = {'URI': kwargs.pop("URI")}
     load_json_to_s3_kwargs = {'key': kwargs.pop('key')}
     data = get_current_weather(*args, **get_current_weather_kwargs)
@@ -56,15 +60,11 @@ def flatten_raw_api_data(data: dict)-> json:
             if isinstance(value, dict):
                 record.update(value)
             elif isinstance(value, list):
-                #print(f'This is the value {value[0]}')
+
                 record.update(value[0])
             else:
                 record[key] = value
-        return record
-if __name__ == "__main__":
-    ingest(get_current_weather, load_json_to_s3, URI = ZIP_CODE_CURRENT_API, key = f'Raw_api_data/{CITY}_Weather_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.json')
-        
-        
+        return json.dumps(record, indent = 2)
 
 #Processing step
 def retrieve_json_from_S3(key, bucket_name)-> dict:
@@ -73,11 +73,26 @@ def retrieve_json_from_S3(key, bucket_name)-> dict:
     data  = json.loads(json_content)
     return data
 
+def process(retrieve_json_from_S3, flatten_raw_api_data, **kwargs) -> json:
+     '''
+     Wrapper function for functions involving process
+     Returns json to be used for storage 
+     '''
+     retrieve_json_from_S3_kwargs = {'key': kwargs.pop('key'), 'bucket_name': kwargs.pop('bucket_name')}
+     data = retrieve_json_from_S3(**retrieve_json_from_S3_kwargs)
+     
+     return flatten_raw_api_data(data)
+if __name__ == "__main__":
+    ingest(get_current_weather, load_json_to_s3, URI = ZIP_CODE_CURRENT_API, key = key )
+    processed_data = process(retrieve_json_from_S3, flatten_raw_api_data, key = key, bucket_name = bucket_name )
+    logging.info(f'The file: {key} has been processed successfully.')
+        
+
+
+
 '''
 TODO
-set all of this up in a git branch
 add pytest
-create functions of the current import package
 update requirements file for docker
 Look into black / flake8
 '''
