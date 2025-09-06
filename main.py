@@ -20,7 +20,9 @@ country_code = "USA"
 ZIP_CODE_CURRENT_API = f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=imperial"
 bucket_name = "1daatabucket"
 s3 = boto3.client("s3")
-key = f'Raw_api_data/{CITY}_Weather_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.json'
+timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+schema = "Raw_api_data"
+key = f"{schema}/{CITY}_Weather_{timestamp}.json"
 
 
 def get_current_weather(URI: str) -> json:
@@ -92,12 +94,18 @@ def process(retrieve_json_from_S3, flatten_raw_api_data, **kwargs) -> json:
 if __name__ == "__main__":
     ingest(get_current_weather, load_json_to_s3, URI=ZIP_CODE_CURRENT_API, key=key)
     processed_data = process(retrieve_json_from_S3, flatten_raw_api_data, key=key, bucket_name=bucket_name)
+    logging.info(f"The processed data: {processed_data}")
     logging.info(f"The file: {key} has been processed successfully.")
+    schema = "Tabularized_data"
+    load_key = f"{schema}/{CITY}_Weather_{timestamp}.json"
+    load_json_to_s3(processed_data, load_key)
+    logging.info(f"The file: {load_key} has been loaded successfully.")
 
 
 """
 TODO
 add pytest
-update requirements file for docker
-Look into black / flake8
+Write the load data function and save it as a csv for ingestion.
+stretch - load to a postgres db (This api doesn't yield enough data for this to be a good idea, maybe another project.)
+Improve logging and add docstrings and other stretch goals
 """

@@ -6,3 +6,4 @@ scratch.py
 util.py
 api.py
 test.py
+.DS_Store
