@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import boto3
 from datetime import datetime
 import logger
+import csv
+import io
 
 # Load environmental variables
 load_dotenv()
@@ -69,6 +71,18 @@ def flatten_raw_api_data(data: dict) -> json:
     return json.dumps(record, indent=2)
 
 
+def convert_json_to_csv(data):
+    data_dict = json.loads(data)
+    logging.info(f"Verifying data datatype {type(data)} is dictionary")
+    columns = data_dict.keys()
+    csv_buffer = io.StringIO()
+    writer = csv.DictWriter(csv_buffer, fieldnames=columns)
+    writer.writeheader()
+    writer.writerow(data_dict)
+    csv_buffer.seek(0)
+    return io.BytesIO(csv_buffer.getvalue().encode("utf-8"))
+
+
 # Processing step
 def retrieve_json_from_S3(key, bucket_name) -> dict:
     response = s3.get_object(Bucket=bucket_name, Key=key)
@@ -91,14 +105,26 @@ def process(retrieve_json_from_S3, flatten_raw_api_data, **kwargs) -> json:
     return flatten_raw_api_data(data)
 
 
+def upload_buffer_to_s3(buffer, bucket_name, object_key):
+    """
+    Uploads a file-like buffer object to S3.
+    """
+    s3_client = boto3.client("s3")
+    buffer.seek(0)  # Rewind buffer to the beginning
+    s3_client.upload_fileobj(buffer, bucket_name, object_key)
+    logging.info(f"Successfully uploaded to s3://{bucket_name}/{object_key}")
+
+
 if __name__ == "__main__":
     ingest(get_current_weather, load_json_to_s3, URI=ZIP_CODE_CURRENT_API, key=key)
     processed_data = process(retrieve_json_from_S3, flatten_raw_api_data, key=key, bucket_name=bucket_name)
     logging.info(f"The processed data: {processed_data}")
     logging.info(f"The file: {key} has been processed successfully.")
+    tabular_data = convert_json_to_csv(processed_data)
     schema = "Tabularized_data"
-    load_key = f"{schema}/{CITY}_Weather_{timestamp}.json"
-    load_json_to_s3(processed_data, load_key)
+    load_key = f"{schema}/{CITY}_Weather_{timestamp}.csv"
+    upload_buffer_to_s3(tabular_data, bucket_name, load_key)
+    # load_json_to_s3(tabular_data.getvalue(), load_key)
     logging.info(f"The file: {load_key} has been loaded successfully.")
 
 
